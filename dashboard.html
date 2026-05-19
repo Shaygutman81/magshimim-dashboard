@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sales War Room – מגשימים מדמ"ח</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#035596; --blue:#1B75BC; --cyan:#5EC8DA;
+  --green:#00c875; --orange:#fdab3d; --red:#df2f4a;
+  --purple:#9d50dd; --gray:#f4f6f9; --text:#222e3e;
+  --card-shadow:0 2px 16px rgba(3,85,150,.10);
+}
+body{font-family:'Heebo',sans-serif;background:var(--gray);color:var(--text);min-height:100vh}
+
+/* ── SETUP MODAL ── */
+#setup-overlay{position:fixed;inset:0;background:rgba(3,85,150,.85);z-index:999;display:flex;align-items:center;justify-content:center}
+#setup-box{background:#fff;border-radius:16px;padding:40px;max-width:480px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.3)}
+#setup-box h2{color:var(--navy);margin-bottom:8px;font-size:1.4rem}
+#setup-box p{color:#666;font-size:.9rem;margin-bottom:24px;line-height:1.5}
+.setup-field{margin-bottom:16px}
+.setup-field label{display:block;font-size:.85rem;font-weight:700;color:var(--navy);margin-bottom:6px}
+.setup-field input{width:100%;padding:10px 14px;border:2px solid #e0e7ef;border-radius:8px;font-family:'Heebo',sans-serif;font-size:.95rem;outline:none;transition:.2s}
+.setup-field input:focus{border-color:var(--blue)}
+#setup-btn{width:100%;padding:12px;background:var(--navy);color:#fff;border:none;border-radius:10px;font-family:'Heebo',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;transition:.2s}
+#setup-btn:hover{background:var(--blue)}
+.setup-hint{font-size:.8rem;color:#999;margin-top:4px}
+
+/* ── HEADER ── */
+header{background:linear-gradient(135deg,var(--navy) 0%,var(--blue) 100%);color:#fff;padding:20px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(3,85,150,.3)}
+.header-left h1{font-size:1.5rem;font-weight:800}
+.header-left p{font-size:.85rem;opacity:.75;margin-top:2px}
+.header-right{display:flex;gap:12px;align-items:center}
+#last-updated{font-size:.8rem;opacity:.7}
+#refresh-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:8px 16px;border-radius:8px;font-family:'Heebo',sans-serif;font-size:.85rem;cursor:pointer;transition:.2s}
+#refresh-btn:hover{background:rgba(255,255,255,.25)}
+#logout-btn{background:none;border:none;color:rgba(255,255,255,.5);font-size:.8rem;cursor:pointer;text-decoration:underline;font-family:'Heebo',sans-serif}
+#sync-btn{background:rgba(0,200,117,.25);border:1px solid rgba(0,200,117,.5);color:#fff;padding:8px 16px;border-radius:8px;font-family:'Heebo',sans-serif;font-size:.85rem;cursor:pointer;transition:.2s;font-weight:700}
+#sync-btn:hover{background:rgba(0,200,117,.4)}
+#sync-btn:disabled{opacity:.5;cursor:not-allowed}
+#sync-toast{position:fixed;bottom:24px;right:24px;background:#222e3e;color:#fff;padding:14px 20px;border-radius:12px;font-size:.9rem;max-width:360px;box-shadow:0 4px 20px rgba(0,0,0,.3);z-index:999;display:none;line-height:1.5}
+
+/* ── LOADING ── */
+#loading{text-align:center;padding:80px 20px;display:none}
+.spinner{width:48px;height:48px;border:4px solid #e0e7ef;border-top-color:var(--blue);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── MAIN ── */
+main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
+
+/* ── KPI BAR ── */
+.kpi-bar{display:grid;grid-template-columns:repeat(5,1fr) 1.3fr;gap:16px;margin-bottom:24px}
+.kpi-card{background:#fff;border-radius:14px;padding:20px 16px;box-shadow:var(--card-shadow);text-align:center;border-top:4px solid transparent}
+.kpi-card.blue{border-color:var(--navy)}
+.kpi-card.lblue{border-color:var(--blue)}
+.kpi-card.cyan{border-color:var(--cyan)}
+.kpi-card.purple{border-color:var(--purple)}
+.kpi-card.green{border-color:var(--green)}
+.kpi-card.urgent{border-color:var(--red);background:linear-gradient(135deg,#fff5f7,#fff)}
+.kpi-num{font-size:2.4rem;font-weight:900;line-height:1}
+.kpi-label{font-size:.78rem;color:#888;margin-top:6px;font-weight:500}
+.kpi-sub{font-size:.72rem;color:#aaa;margin-top:2px}
+.kpi-card.urgent .kpi-num{color:var(--red);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* ── SECTIONS GRID ── */
+.main-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px}
+.full-width{grid-column:1/-1}
+
+/* ── CARDS ── */
+.card{background:#fff;border-radius:14px;box-shadow:var(--card-shadow);overflow:hidden}
+.card-header{padding:16px 20px 12px;border-bottom:1px solid #f0f4f8;display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:1rem;font-weight:700;color:var(--navy)}
+.card-badge{font-size:.75rem;background:var(--gray);color:#666;padding:3px 10px;border-radius:20px}
+.card-body{padding:16px 20px}
+
+/* ── FUNNEL ── */
+.funnel{display:flex;flex-direction:column;gap:8px;padding:16px 20px}
+.funnel-row{display:flex;align-items:center;gap:12px}
+.funnel-bar-wrap{flex:1;background:#f0f4f8;border-radius:6px;height:36px;overflow:hidden;position:relative}
+.funnel-bar{height:100%;border-radius:6px;display:flex;align-items:center;padding:0 12px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+.funnel-bar-text{color:#fff;font-size:.8rem;font-weight:700;white-space:nowrap}
+.funnel-stage{width:130px;font-size:.82rem;font-weight:600;color:#555;text-align:right}
+.funnel-meta{width:90px;text-align:left;font-size:.8rem;color:#888}
+.funnel-count{font-weight:800;color:var(--text);font-size:.9rem}
+.funnel-arrow{color:#ccc;font-size:.75rem;margin-top:2px;text-align:center}
+
+/* ── ALERTS ── */
+.alerts-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:16px 20px}
+.alert-col{}
+.alert-col-title{font-size:.8rem;font-weight:700;padding:6px 10px;border-radius:6px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.alert-col.red .alert-col-title{background:#fef2f4;color:var(--red)}
+.alert-col.orange .alert-col-title{background:#fff8ee;color:#c47000}
+.alert-col.yellow .alert-col-title{background:#fffbee;color:#8a6d00}
+.alert-col.gray .alert-col-title{background:#f4f4f4;color:#666}
+.alert-col.gray .alert-item{background:#f9f9f9;border-color:#e0e0e0}
+.alert-col.gray .alert-item:hover{background:#e8e8e8}
+.alert-item{font-size:.78rem;padding:6px 8px;border-radius:6px;margin-bottom:4px;cursor:pointer;transition:.15s;display:flex;justify-content:space-between;align-items:center;border:1px solid transparent}
+.alert-col.red .alert-item{background:#fff5f7;border-color:#fce4ea}
+.alert-col.red .alert-item:hover{background:#fce4ea}
+.alert-col.orange .alert-item{background:#fff9f0;border-color:#ffe8c0}
+.alert-col.orange .alert-item:hover{background:#ffe8c0}
+.alert-col.yellow .alert-item{background:#fffdf0;border-color:#fff0a0}
+.alert-col.yellow .alert-item:hover{background:#fff0a0}
+.alert-item-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
+.alert-item-badge{font-size:.7rem;opacity:.7;white-space:nowrap;flex-shrink:0;margin-right:4px}
+.alert-empty{color:#bbb;font-size:.8rem;text-align:center;padding:16px 0}
+
+/* ── MANAGERS TABLE ── */
+.mgr-table{width:100%;border-collapse:collapse}
+.mgr-table th{text-align:right;font-size:.78rem;color:#888;font-weight:600;padding:8px 12px;border-bottom:2px solid #f0f4f8}
+.mgr-table td{padding:10px 12px;border-bottom:1px solid #f8f9fb;font-size:.85rem}
+.mgr-table tr:last-child td{border-bottom:none}
+.mgr-table tr:hover td{background:#f8fbff}
+.mgr-rank{font-weight:900;color:var(--navy);font-size:1rem}
+.mgr-rank.gold{color:#f5a623}
+.mgr-name{font-weight:700}
+.score-bar-wrap{background:#f0f4f8;border-radius:4px;height:8px;width:80px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
+.score-bar{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--blue),var(--cyan))}
+
+/* ── PROGRAM CHART ── */
+#prog-chart-wrap{padding:16px 20px;height:220px}
+
+/* ── PROGRAM DETAIL CARDS ── */
+.prog-detail-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;padding:16px 20px}
+.prog-card{background:#f8faff;border-radius:10px;padding:14px;border:1px solid #e8eef8}
+.prog-card-name{font-size:.82rem;font-weight:800;color:var(--navy);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog-total{font-size:1.8rem;font-weight:900;color:var(--navy);line-height:1}
+.prog-total-label{font-size:.7rem;color:#aaa;margin-bottom:10px}
+.prog-status-list{display:flex;flex-direction:column;gap:4px}
+.prog-status-row{display:flex;align-items:center;justify-content:space-between;font-size:.75rem}
+.prog-status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-left:6px}
+.prog-status-label{flex:1;color:#666}
+.prog-status-count{font-weight:700;color:var(--text)}
+.prog-conv-bar{margin-top:10px;background:#e8eef8;border-radius:4px;height:6px;overflow:hidden}
+.prog-conv-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--blue),var(--cyan));transition:width .8s ease}
+.prog-conv-label{font-size:.7rem;color:#aaa;margin-top:3px}
+@media(max-width:1100px){.prog-detail-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.prog-detail-grid{grid-template-columns:1fr 1fr}}
+
+/* ── AI INSIGHT ── */
+.ai-section{padding:20px}
+.ai-controls{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+#ai-btn{background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;border:none;padding:10px 20px;border-radius:10px;font-family:'Heebo',sans-serif;font-size:.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;transition:.2s}
+#ai-btn:hover{opacity:.9}
+#ai-btn:disabled{opacity:.5;cursor:not-allowed}
+.ai-key-input{flex:1;padding:8px 12px;border:2px solid #e0e7ef;border-radius:8px;font-family:'Heebo',sans-serif;font-size:.85rem;outline:none}
+.ai-key-input:focus{border-color:var(--blue)}
+.ai-result{background:linear-gradient(135deg,#f0f8ff,#f8f0ff);border-radius:10px;padding:16px 20px;font-size:.9rem;line-height:1.7;color:var(--text);border-right:4px solid var(--blue);min-height:60px;white-space:pre-line}
+.ai-result.loading{color:#aaa;animation:pulse 1.5s ease-in-out infinite}
+
+@media(max-width:900px){
+  .kpi-bar{grid-template-columns:repeat(3,1fr)}
+  .main-grid{grid-template-columns:1fr}
+  .alerts-grid{grid-template-columns:1fr}
+  main{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP MODAL -->
+<div id="setup-overlay">
+  <div id="setup-box">
+    <h2>🚀 Sales War Room</h2>
+    <p>כדי לטעון נתונים חיים מ-Monday.com, הכנס את פרטי הגישה שלך. הם נשמרים רק בדפדפן זה.</p>
+    <div class="setup-field">
+      <label>Monday API Token *</label>
+      <input type="password" id="input-monday" placeholder="eyJhbGciOiJIUzI1NiJ9..." autocomplete="off">
+      <div class="setup-hint">ניתן למצוא ב-Monday → Profile → Developers → API v2 Token</div>
+    </div>
+    <div class="setup-field">
+      <label>Anthropic API Key (לתובנות AI – אופציונלי)</label>
+      <input type="password" id="input-anthropic" placeholder="sk-ant-..." autocomplete="off">
+    </div>
+    <button id="setup-btn" onclick="saveSetup()">כניסה לדשבורד ←</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="header-left">
+    <h1>⚡ Sales War Room — מגשימים מדמ"ח תשפ"ז</h1>
+    <p id="last-updated">טוען נתונים...</p>
+  </div>
+  <div class="header-right">
+    <a href="https://cyber798195.monday.com/boards/18409244173" target="_blank" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:8px 16px;border-radius:8px;font-family:'Heebo',sans-serif;font-size:.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px">📋 בורד מכירות</a>
+    <a href="https://cyber798195.monday.com/boards/8113606849" target="_blank" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:8px 16px;border-radius:8px;font-family:'Heebo',sans-serif;font-size:.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px">🤝 בורד שיתוף פעולה</a>
+    <button id="sync-btn" onclick="syncToCoopBoard()">⇄ סנכרן לשיתוף פעולה</button>
+    <button id="refresh-btn" onclick="loadData()">↻ רענן</button>
+    <button id="logout-btn" onclick="logout()">התנתק</button>
+  </div>
+</header>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="spinner"></div>
+  <p style="color:#888;font-size:.9rem">טוען נתונים מ-Monday.com...</p>
+</div>
+
+<!-- MAIN -->
+<main id="main-content">
+
+  <!-- KPI BAR -->
+  <div class="kpi-bar">
+    <div class="kpi-card blue">
+      <div class="kpi-num" id="kpi-total">–</div>
+      <div class="kpi-label">סה"כ בתי ספר</div>
+    </div>
+    <div class="kpi-card lblue">
+      <div class="kpi-num" id="kpi-contacted">–</div>
+      <div class="kpi-label">פנינו</div>
+      <div class="kpi-sub" id="kpi-contacted-pct"></div>
+    </div>
+    <div class="kpi-card cyan">
+      <div class="kpi-num" id="kpi-calldone">–</div>
+      <div class="kpi-label">שיחה בוצעה</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-num" id="kpi-interested">–</div>
+      <div class="kpi-label">יש עניין</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-num" id="kpi-approved">–</div>
+      <div class="kpi-label">אישרו ✓</div>
+    </div>
+    <div class="kpi-card urgent">
+      <div class="kpi-num" id="kpi-urgent">–</div>
+      <div class="kpi-label">⚡ בתכנון כיתות — טרם פנינו</div>
+      <div class="kpi-sub">דחוף לחיוג</div>
+    </div>
+  </div>
+
+  <!-- ROW 1: FUNNEL + ALERTS -->
+  <div class="main-grid" style="margin-bottom:24px">
+
+    <!-- FUNNEL -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🔻 פאנל מכירה</span>
+        <span class="card-badge">% המרה מהשלב הקודם</span>
+      </div>
+      <div class="funnel" id="funnel-container"></div>
+    </div>
+
+    <!-- PROGRAMS -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📊 פירוט לפי תכנית</span>
+      </div>
+      <div id="prog-chart-wrap">
+        <canvas id="prog-chart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PROGRAMS DETAIL (full width) -->
+  <div class="card full-width" style="margin-bottom:24px">
+    <div class="card-header">
+      <span class="card-title">📋 פירוט לפי תכנית</span>
+      <span class="card-badge">סטטוס כל בית ספר</span>
+    </div>
+    <div class="prog-detail-grid" id="prog-detail-grid"></div>
+  </div>
+
+  <!-- ALERTS (full width) -->
+  <div class="card full-width" style="margin-bottom:24px">
+    <div class="card-header">
+      <span class="card-title">🚨 מה בוער עכשיו</span>
+      <span class="card-badge" id="alerts-total">טוען...</span>
+    </div>
+    <div class="alerts-grid">
+      <div class="alert-col red">
+        <div class="alert-col-title">🔴 פולו-אפ באיחור <span id="cnt-od"></span></div>
+        <div id="alerts-overdue"></div>
+      </div>
+      <div class="alert-col orange">
+        <div class="alert-col-title">🟠 בתכנון – טרם פנינו <span id="cnt-pnc"></span></div>
+        <div id="alerts-planned"></div>
+      </div>
+      <div class="alert-col yellow">
+        <div class="alert-col-title">🟡 ממתינים 7+ ימים <span id="cnt-w7"></span></div>
+        <div id="alerts-waiting"></div>
+      </div>
+      <div class="alert-col gray">
+        <div class="alert-col-title">⚫ לא מעוניינים <span id="cnt-ni"></span></div>
+        <div id="alerts-not-interested"></div>
+      </div>
+      <div class="alert-col orange">
+        <div class="alert-col-title">⏳ ממתינים לתשובה <span id="cnt-wa"></span></div>
+        <div id="alerts-waiting-answer"></div>
+      </div>
+      <div class="alert-col yellow">
+        <div class="alert-col-title">📅 מעקב עתידי <span id="cnt-ff"></span></div>
+        <div id="alerts-future-followup"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 2: MANAGERS + AI -->
+  <div class="main-grid">
+
+    <!-- MANAGERS -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🏆 ביצועי מנהלי אזור</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table class="mgr-table">
+          <thead>
+            <tr>
+              <th>#</th><th>מנהל</th><th>בתי ספר</th><th>פנינו %</th><th>עניין %</th><th>אישרו</th><th>ציון</th>
+            </tr>
+          </thead>
+          <tbody id="mgr-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AI INSIGHT -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🤖 תובנת AI שבועית</span>
+      </div>
+      <div class="ai-section">
+        <div class="ai-controls">
+          <button id="ai-btn" onclick="getInsight()">🤖 סכם את הפייפליין</button>
+          <input class="ai-key-input" id="ai-key-display" type="password" placeholder="Anthropic API Key (אם לא הוזן בהתחלה)">
+        </div>
+        <div class="ai-result" id="ai-result">לחץ על הכפתור לקבלת תובנה חכמה על מצב המכירות.</div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let mondayToken = '', anthropicKey = '', dashData = null;
+let progChart = null;
+const REFRESH_MS = 5 * 60 * 1000; // 5 min
+
+// ── Setup ──────────────────────────────────────────────────────────────────
+function init() {
+  mondayToken  = localStorage.getItem('war_monday')  || '';
+  anthropicKey = localStorage.getItem('war_anthropic') || '';
+  if (mondayToken) {
+    document.getElementById('setup-overlay').style.display = 'none';
+    document.getElementById('ai-key-display').value = anthropicKey ? '••••••••' : '';
+    loadData();
+    setInterval(loadData, REFRESH_MS);
+  }
+}
+
+function saveSetup() {
+  const mt = document.getElementById('input-monday').value.trim();
+  const ak = document.getElementById('input-anthropic').value.trim();
+  if (!mt) { alert('Monday API Token נדרש'); return; }
+  localStorage.setItem('war_monday', mt);
+  if (ak) localStorage.setItem('war_anthropic', ak);
+  mondayToken  = mt;
+  anthropicKey = ak;
+  document.getElementById('setup-overlay').style.display = 'none';
+  loadData();
+  setInterval(loadData, REFRESH_MS);
+}
+
+function logout() {
+  localStorage.removeItem('war_monday');
+  localStorage.removeItem('war_anthropic');
+  location.reload();
+}
+
+// ── Data ───────────────────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('main-content').style.display = 'none';
+  try {
+    const r = await fetch('/api/data', { headers: { 'X-Monday-Token': mondayToken } });
+    const d = await r.json();
+    if (d.error) { showError(d.error); return; }
+    dashData = d;
+    render(d);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main-content').style.display = 'block';
+  } catch(e) {
+    showError('שגיאת תקשורת עם השרת: ' + e.message);
+  }
+}
+
+function showError(msg) {
+  document.getElementById('loading').innerHTML =
+    `<p style="color:var(--red);font-size:.95rem">⚠️ ${msg}</p>
+     <button onclick="location.reload()" style="margin-top:16px;padding:8px 20px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:Heebo,sans-serif">נסה שוב</button>`;
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function render(d) {
+  const s = d.stats;
+  const pct = (a,b) => b ? Math.round(a/b*100) : 0;
+
+  // KPIs
+  document.getElementById('kpi-total').textContent      = s.total;
+  document.getElementById('kpi-contacted').textContent  = s.contacted;
+  document.getElementById('kpi-contacted-pct').textContent = pct(s.contacted,s.total) + '%';
+  document.getElementById('kpi-calldone').textContent   = s.call_done;
+  document.getElementById('kpi-interested').textContent = s.interested;
+  document.getElementById('kpi-approved').textContent   = s.approved;
+  document.getElementById('kpi-urgent').textContent     = s.planned_not_contacted;
+  document.getElementById('last-updated').textContent   = 'עודכן: ' + d.last_updated;
+
+  // Funnel
+  const fc = document.getElementById('funnel-container');
+  fc.innerHTML = '';
+  d.funnel.forEach((f, i) => {
+    const maxW = 100, minW = 20;
+    const barW = Math.max(minW, f.pct_abs);
+    fc.innerHTML += `
+      <div class="funnel-row">
+        <div class="funnel-stage">${f.stage}</div>
+        <div class="funnel-bar-wrap">
+          <div class="funnel-bar" style="width:${barW}%;background:${f.color}">
+            <span class="funnel-bar-text">${f.count}</span>
+          </div>
+        </div>
+        <div class="funnel-meta">
+          ${i > 0 ? `<span style="color:${f.color};font-weight:700">${f.pct_prev}%</span><span style="color:#bbb;font-size:.7rem"> מקודם</span>` : ''}
+        </div>
+      </div>
+      ${i < d.funnel.length-1 ? '<div class="funnel-arrow">▼</div>' : ''}`;
+  });
+
+  // Alerts
+  const al = d.alerts;
+  const totalAlerts = al.overdue_followup.length + al.planned_not_contacted.length + al.waiting_7days.length;
+  document.getElementById('alerts-total').textContent = totalAlerts + ' התראות';
+  document.getElementById('cnt-od').textContent  = '(' + al.overdue_followup.length + ')';
+  document.getElementById('cnt-pnc').textContent = '(' + al.planned_not_contacted.length + ')';
+  document.getElementById('cnt-w7').textContent  = '(' + al.waiting_7days.length + ')';
+  document.getElementById('cnt-ni').textContent  = '(' + (al.not_interested||[]).length + ')';
+  document.getElementById('cnt-wa').textContent  = '(' + (al.waiting_answer||[]).length + ')';
+  document.getElementById('cnt-ff').textContent  = '(' + (al.future_followup||[]).length + ')';
+
+  renderAlerts('alerts-overdue',         al.overdue_followup,       a => a.name, a => `${a.days} ימים`,   a => a.url);
+  renderAlerts('alerts-planned',         al.planned_not_contacted,  a => a.name, () => 'דחוף',            a => a.url);
+  renderAlerts('alerts-waiting',         al.waiting_7days,          a => a.name, a => `${a.days} ימים`,   a => a.url);
+  renderAlerts('alerts-not-interested', (al.not_interested||[]),    a => a.name, () => '',                 a => a.url);
+  renderAlerts('alerts-waiting-answer', (al.waiting_answer||[]),    a => a.name, a => a.programs || a.date || '', a => a.url);
+  renderAlerts('alerts-future-followup',(al.future_followup||[]),   a => a.name, a => a.programs || `בעוד ${a.days} י'`, a => a.url);
+
+  // Managers
+  const tbody = document.getElementById('mgr-tbody');
+  tbody.innerHTML = '';
+  d.managers.forEach((m, i) => {
+    const rankClass = i === 0 ? 'mgr-rank gold' : 'mgr-rank';
+    tbody.innerHTML += `<tr>
+      <td><span class="${rankClass}">${i+1}</span></td>
+      <td class="mgr-name">${m.name}</td>
+      <td>${m.total}</td>
+      <td>${m.contacted_pct}%</td>
+      <td>${m.interest_rate}%</td>
+      <td>${m.approved}</td>
+      <td>
+        <div class="score-bar-wrap"><div class="score-bar" style="width:${m.score}%"></div></div>
+        <strong>${m.score}</strong>
+      </td>
+    </tr>`;
+  });
+
+  // Programs chart
+  renderProgChart(d.programs);
+
+  // Programs detail cards
+  renderProgDetail(d.programs);
+}
+
+function renderAlerts(elId, items, nameFn, badgeFn, urlFn) {
+  const el = document.getElementById(elId);
+  if (!items.length) { el.innerHTML = '<div class="alert-empty">אין התראות 🎉</div>'; return; }
+  el.innerHTML = items.slice(0,10).map(a =>
+    `<div class="alert-item" onclick="window.open('${urlFn(a)}','_blank')" title="${nameFn(a)}">
+       <span class="alert-item-name">${nameFn(a)}</span>
+       <span class="alert-item-badge">${badgeFn(a)}</span>
+     </div>`
+  ).join('');
+}
+
+function renderProgChart(programs) {
+  const ctx = document.getElementById('prog-chart').getContext('2d');
+  if (progChart) progChart.destroy();
+  progChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: programs.map(p => p.name),
+      datasets: [
+        { label: 'הוצע', data: programs.map(p => p.proposed),   backgroundColor: '#1B75BC', borderRadius: 4 },
+        { label: 'מעוניין', data: programs.map(p => p.interested), backgroundColor: '#9d50dd', borderRadius: 4 },
+        { label: 'אישר',  data: programs.map(p => p.approved),   backgroundColor: '#00c875', borderRadius: 4 },
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Heebo' }, boxWidth: 12 } } },
+      scales: {
+        x: { grid: { color: '#f0f4f8' }, ticks: { font: { family: 'Heebo', size: 11 } } },
+        y: { grid: { display: false }, ticks: { font: { family: 'Heebo', size: 12 }, mirror: true } }
+      }
+    }
+  });
+}
+
+// ── Program Detail Cards ───────────────────────────────────────────────────
+const PROG_STATUS_META = [
+  { key: "בית ספר מעוניין", color: "#9d50dd", label: "בית ספר מעוניין" },
+  { key: "התקיימה פגישה",   color: "#df2f4a", label: "התקיימה פגישה"   },
+  { key: "תואמה פגישה",     color: "#fdab3d", label: "תואמה פגישה"     },
+  { key: "בוצעה שיחה",      color: "#007eb5", label: "בוצעה שיחה"      },
+  { key: "פעיל",             color: "#00c875", label: "פעיל"            },
+];
+
+function renderProgDetail(programs) {
+  const grid = document.getElementById('prog-detail-grid');
+  grid.innerHTML = '';
+  programs.forEach(p => {
+    const statuses = p.statuses || {};
+    const convPct  = p.proposed ? Math.round(p.interested / p.proposed * 100) : 0;
+    const rows = PROG_STATUS_META
+      .filter(m => (statuses[m.key] || 0) > 0)
+      .map(m => `
+        <div class="prog-status-row">
+          <span class="prog-status-dot" style="background:${m.color}"></span>
+          <span class="prog-status-label">${m.label}</span>
+          <span class="prog-status-count">${statuses[m.key] || 0}</span>
+        </div>`).join('');
+
+    grid.innerHTML += `
+      <div class="prog-card">
+        <div class="prog-card-name" title="${p.name}">${p.name}</div>
+        <div class="prog-total">${p.proposed}</div>
+        <div class="prog-total-label">בתי ספר הוצעה התכנית</div>
+        ${p.waiting ? `<div style="display:inline-flex;align-items:center;gap:5px;background:#fff8ee;border:1px solid #ffe0a0;border-radius:6px;padding:3px 8px;margin-bottom:8px;font-size:.75rem;font-weight:700;color:#b07000">⏳ ${p.waiting} ממתינים לתשובה</div>` : ''}
+        <div class="prog-status-list">
+          ${rows || '<span style="color:#ccc;font-size:.75rem">אין נתונים</span>'}
+        </div>
+        <div class="prog-conv-bar">
+          <div class="prog-conv-fill" style="width:${convPct}%"></div>
+        </div>
+        <div class="prog-conv-label">המרה לעניין: ${convPct}%</div>
+      </div>`;
+  });
+}
+
+// ── AI Insight ─────────────────────────────────────────────────────────────
+async function getInsight() {
+  const btn = document.getElementById('ai-btn');
+  const res = document.getElementById('ai-result');
+  const keyInput = document.getElementById('ai-key-display').value.trim();
+  const key = (keyInput && keyInput !== '••••••••')
+    ? keyInput
+    : (anthropicKey || localStorage.getItem('war_anthropic') || '');
+
+  if (!key) { res.textContent = 'נדרש Anthropic API Key.'; return; }
+  if (!dashData) { res.textContent = 'טוען נתונים קודם...'; return; }
+
+  btn.disabled = true;
+  res.className = 'ai-result loading';
+  res.textContent = 'מנתח פייפליין... ⏳';
+
+  try {
+    const r = await fetch('/api/insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ anthropic_key: key, data: dashData })
+    });
+    const d = await r.json();
+    res.className = 'ai-result';
+    res.textContent = d.error ? '⚠️ ' + d.error : d.insight;
+  } catch(e) {
+    res.className = 'ai-result';
+    res.textContent = '⚠️ שגיאה: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+init();
+
+// ── Sync to cooperation board ───────────────────────────────────────────────
+async function syncToCoopBoard() {
+  const token = mondayToken || localStorage.getItem('war_monday') || '';
+  if (!token) { alert('חסר Monday API Token'); return; }
+
+  const btn = document.getElementById('sync-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ מסנכרן...';
+
+  try {
+    const res = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'X-Monday-Token': token, 'Content-Type': 'application/json' }
+    });
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+
+    const toast = document.getElementById('sync-toast');
+    if (d.synced_schools === 0) {
+      toast.innerHTML = '✅ <b>אין בתי ספר חדשים לסנכרן</b><br>' +
+        (d.already_synced ? `${d.already_synced} בתי ספר כבר הועברו בעבר` : 'כל בתי הספר מסונכרנים');
+    } else {
+      toast.innerHTML = `✅ <b>הועברו ${d.synced_schools} בתי ספר</b> לבורד שיתוף פעולה<br>` +
+        `נוצרו ${d.items_created} פריטים | ${d.already_synced} כבר היו מסונכרנים<br>` +
+        `<small style="opacity:.7">${d.schools.slice(0,5).join(', ')}${d.schools.length > 5 ? '...' : ''}</small>`;
+    }
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 7000);
+    loadData();
+  } catch(e) {
+    alert('שגיאה בסנכרון: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⇄ סנכרן לשיתוף פעולה';
+  }
+}
+</script>
+<div id="sync-toast"></div>
+</body>
+</html>
