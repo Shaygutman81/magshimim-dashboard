@@ -273,10 +273,9 @@ def parse(items):
 
     prog_list = [{"name": k, **v} for k, v in programs.items()]
     by_prog_list = [{"name": k,
-                     "waiting": sorted(v["waiting"], key=lambda x: x["fu_date"]),
-                     "future_followup": sorted(v["future_followup"], key=lambda x: x["days"])}
+                     "waiting": sorted(v["waiting"], key=lambda x: x["fu_date"])}
                     for k, v in by_program.items()
-                    if v["waiting"] or v["future_followup"]]
+                    if v["waiting"]]
 
     return dict(stats=stats, funnel=funnel, alerts=alerts,
                 managers=mgr_list, programs=prog_list,

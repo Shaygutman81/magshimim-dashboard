@@ -654,19 +654,9 @@ function renderByProgram(byProg) {
         <span class="by-prog-school">${s.name}</span>
         <span class="by-prog-date">${s.fu_date ? '📅 ' + s.fu_date : ''}</span>
       </div>`).join('');
-    const futRows = p.future_followup.map(s =>
-      `<div class="by-prog-row" onclick="window.open('${s.url}','_blank')">
-        <span class="by-prog-school">${s.name}</span>
-        <span class="by-prog-date">בעוד ${s.days} י' (${s.date})</span>
-      </div>`).join('');
     return `<div class="by-prog-card">
-      <div class="by-prog-name">${p.name}</div>
-      ${p.waiting.length ? `
-        <div class="by-prog-section-title by-prog-waiting">⏳ ממתינים לתשובה (${p.waiting.length})</div>
-        <div>${waitRows}</div>` : ''}
-      ${p.future_followup.length ? `
-        <div class="by-prog-section-title by-prog-future">📅 מעקב עתידי (${p.future_followup.length})</div>
-        <div>${futRows}</div>` : ''}
+      <div class="by-prog-name">${p.name} <span style="font-weight:400;color:#888;font-size:.75rem">(${p.waiting.length})</span></div>
+      ${waitRows || '<div style="color:#bbb;font-size:.75rem;text-align:center;padding:8px">אין ממתינים</div>'}
     </div>`;
   }).join('');
 }
