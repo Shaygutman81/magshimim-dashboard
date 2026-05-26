@@ -110,6 +110,7 @@ def parse(items):
     PROG_STATUSES = ["בוצעה שיחה", "תואמה פגישה", "התקיימה פגישה", "בית ספר מעוניין", "פעיל"]
     programs = {n: dict(proposed=0, interested=0, approved=0, waiting=0,
                         statuses={s: 0 for s in PROG_STATUSES}) for n in PROG_COLS}
+    by_program = {n: {"waiting": [], "future_followup": []} for n in PROG_COLS}
 
     for item in items:
         cvs = {cv["id"]: cv for cv in item.get("column_values", [])}
@@ -202,6 +203,9 @@ def parse(items):
         if fu_status == "אישר ✓":  m["approved"]   += 1
 
         # ── programs ──
+        prog_text = txt(C_PROGRAMS)
+        school_progs = [p for p in PROG_COLS if p in prog_text]
+
         for prog_name, col_id in PROG_COLS.items():
             st = txt(col_id)
             if st:
@@ -212,6 +216,19 @@ def parse(items):
                     programs[prog_name]["approved"] += 1
                 if fu_status == "ממתין לתשובה":
                     programs[prog_name]["waiting"] += 1
+
+        # ── by_program (waiting + future followup) ──
+        for pname in school_progs:
+            if fu_status == "ממתין לתשובה":
+                by_program[pname]["waiting"].append(
+                    {"name": name, "url": url, "fu_date": fu_date or ""})
+            if fu_date and fu_status not in ("אישר ✓", "לא מעוניין", ""):
+                try:
+                    fd = date.fromisoformat(fu_date)
+                    if fd >= today:
+                        by_program[pname]["future_followup"].append(
+                            {"name": name, "url": url, "date": fu_date, "days": (fd - today).days})
+                except: pass
                 for ps in PROG_STATUSES:
                     if ps in st:
                         programs[prog_name]["statuses"][ps] += 1
@@ -255,9 +272,15 @@ def parse(items):
     ]
 
     prog_list = [{"name": k, **v} for k, v in programs.items()]
+    by_prog_list = [{"name": k,
+                     "waiting": sorted(v["waiting"], key=lambda x: x["fu_date"]),
+                     "future_followup": sorted(v["future_followup"], key=lambda x: x["days"])}
+                    for k, v in by_program.items()
+                    if v["waiting"] or v["future_followup"]]
 
     return dict(stats=stats, funnel=funnel, alerts=alerts,
                 managers=mgr_list, programs=prog_list,
+                by_program=by_prog_list,
                 last_updated=datetime.now().strftime("%d/%m/%Y %H:%M"))
 
 def pct(a, b): return round(a / b * 100) if b else 0

@@ -142,6 +142,22 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
 @media(max-width:1100px){.prog-detail-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:700px){.prog-detail-grid{grid-template-columns:1fr 1fr}}
 
+/* ── BY PROGRAM FOLLOWUP ── */
+.by-prog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:16px 20px}
+.by-prog-card{background:#f8faff;border-radius:10px;border:1px solid #e8eef8;padding:14px}
+.by-prog-name{font-size:.85rem;font-weight:800;color:var(--navy);margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #e8eef8}
+.by-prog-section-title{font-size:.75rem;font-weight:700;color:#888;margin:8px 0 5px;text-transform:uppercase;letter-spacing:.03em}
+.by-prog-row{display:flex;justify-content:space-between;align-items:center;font-size:.76rem;padding:4px 6px;border-radius:5px;margin-bottom:3px;cursor:pointer;transition:.15s}
+.by-prog-row:hover{background:#e8eef8}
+.by-prog-school{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.by-prog-date{font-size:.7rem;color:#888;white-space:nowrap;flex-shrink:0;margin-right:4px}
+.by-prog-waiting .by-prog-row{background:#fff9f0;border:1px solid #ffe8c0}
+.by-prog-waiting .by-prog-row:hover{background:#ffe8c0}
+.by-prog-future .by-prog-row{background:#f0f9ff;border:1px solid #c8e6fa}
+.by-prog-future .by-prog-row:hover{background:#c8e6fa}
+@media(max-width:1100px){.by-prog-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.by-prog-grid{grid-template-columns:1fr}}
+
 /* ── AI INSIGHT ── */
 .ai-section{padding:20px}
 .ai-controls{display:flex;gap:12px;align-items:center;margin-bottom:16px}
@@ -300,6 +316,15 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
         <div id="alerts-future-followup"></div>
       </div>
     </div>
+  </div>
+
+  <!-- BY PROGRAM FOLLOWUP (full width) -->
+  <div class="card full-width" style="margin-bottom:24px">
+    <div class="card-header">
+      <span class="card-title">📞 מעקב לפי תכנית — ממתינים ותאריכים</span>
+      <span class="card-badge" id="by-prog-badge"></span>
+    </div>
+    <div class="by-prog-grid" id="by-prog-grid"></div>
   </div>
 
   <!-- ROW 2: MANAGERS + AI -->
@@ -477,6 +502,9 @@ function render(d) {
 
   // Programs detail cards
   renderProgDetail(d.programs);
+
+  // By-program followup
+  renderByProgram(d.by_program || []);
 }
 
 function renderAlerts(elId, items, nameFn, badgeFn, urlFn, limit=10) {
@@ -591,6 +619,39 @@ async function getInsight() {
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 init();
+
+// ── By Program Followup ────────────────────────────────────────────────────
+function renderByProgram(byProg) {
+  const grid = document.getElementById('by-prog-grid');
+  const badge = document.getElementById('by-prog-badge');
+  if (!byProg || !byProg.length) {
+    grid.innerHTML = '<div style="padding:20px;color:#bbb;text-align:center">אין נתונים</div>';
+    return;
+  }
+  const totalWaiting = byProg.reduce((s, p) => s + p.waiting.length, 0);
+  badge.textContent = `${totalWaiting} ממתינים`;
+  grid.innerHTML = byProg.map(p => {
+    const waitRows = p.waiting.map(s =>
+      `<div class="by-prog-row" onclick="window.open('${s.url}','_blank')">
+        <span class="by-prog-school">${s.name}</span>
+        <span class="by-prog-date">${s.fu_date ? '📅 ' + s.fu_date : ''}</span>
+      </div>`).join('');
+    const futRows = p.future_followup.map(s =>
+      `<div class="by-prog-row" onclick="window.open('${s.url}','_blank')">
+        <span class="by-prog-school">${s.name}</span>
+        <span class="by-prog-date">בעוד ${s.days} י' (${s.date})</span>
+      </div>`).join('');
+    return `<div class="by-prog-card">
+      <div class="by-prog-name">${p.name}</div>
+      ${p.waiting.length ? `
+        <div class="by-prog-section-title by-prog-waiting">⏳ ממתינים לתשובה (${p.waiting.length})</div>
+        <div>${waitRows}</div>` : ''}
+      ${p.future_followup.length ? `
+        <div class="by-prog-section-title by-prog-future">📅 מעקב עתידי (${p.future_followup.length})</div>
+        <div>${futRows}</div>` : ''}
+    </div>`;
+  }).join('');
+}
 
 // ── Sync to cooperation board ───────────────────────────────────────────────
 async function syncToCoopBoard() {
