@@ -283,6 +283,15 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
     <div class="prog-detail-grid" id="prog-detail-grid"></div>
   </div>
 
+  <!-- BY PROGRAM FOLLOWUP (full width) -->
+  <div class="card full-width" style="margin-bottom:24px">
+    <div class="card-header">
+      <span class="card-title">📞 מעקב לפי תכנית — ממתינים ותאריכים</span>
+      <span class="card-badge" id="by-prog-badge"></span>
+    </div>
+    <div class="by-prog-grid" id="by-prog-grid"></div>
+  </div>
+
   <!-- ALERTS (full width) -->
   <div class="card full-width" style="margin-bottom:24px">
     <div class="card-header">
@@ -302,28 +311,7 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
         <div class="alert-col-title">🟡 ממתינים 7+ ימים <span id="cnt-w7"></span></div>
         <div id="alerts-waiting"></div>
       </div>
-      <div class="alert-col gray">
-        <div class="alert-col-title">⚫ לא מעוניינים <span id="cnt-ni"></span></div>
-        <div id="alerts-not-interested"></div>
-      </div>
-      <div class="alert-col orange">
-        <div class="alert-col-title">⏳ ממתינים לתשובה <span id="cnt-wa"></span></div>
-        <div id="alerts-waiting-answer"></div>
-      </div>
-      <div class="alert-col yellow">
-        <div class="alert-col-title">📅 מעקב עתידי <span id="cnt-ff"></span></div>
-        <div id="alerts-future-followup"></div>
-      </div>
     </div>
-  </div>
-
-  <!-- BY PROGRAM FOLLOWUP (full width) -->
-  <div class="card full-width" style="margin-bottom:24px">
-    <div class="card-header">
-      <span class="card-title">📞 מעקב לפי תכנית — ממתינים ותאריכים</span>
-      <span class="card-badge" id="by-prog-badge"></span>
-    </div>
-    <div class="by-prog-grid" id="by-prog-grid"></div>
   </div>
 
   <!-- ROW 2: MANAGERS + AI -->
@@ -361,6 +349,18 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
     </div>
 
   </div>
+
+  <!-- לא מעוניינים (סוף עמוד) -->
+  <div class="card full-width" style="margin-top:24px">
+    <div class="card-header">
+      <span class="card-title">⚫ לא מעוניינים</span>
+      <span class="card-badge" id="cnt-ni">טוען...</span>
+    </div>
+    <div class="alerts-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div id="alerts-not-interested-wrap"></div>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -466,16 +466,10 @@ function render(d) {
   document.getElementById('cnt-od').textContent  = '(' + al.overdue_followup.length + ')';
   document.getElementById('cnt-pnc').textContent = '(' + al.planned_not_contacted.length + ')';
   document.getElementById('cnt-w7').textContent  = '(' + al.waiting_7days.length + ')';
-  document.getElementById('cnt-ni').textContent  = '(' + (al.not_interested||[]).length + ')';
-  document.getElementById('cnt-wa').textContent  = '(' + (al.waiting_answer||[]).length + ')';
-  document.getElementById('cnt-ff').textContent  = '(' + (al.future_followup||[]).length + ')';
-
-  renderAlerts('alerts-overdue',         al.overdue_followup,       a => a.name, a => `${a.days} ימים`,   a => a.url);
-  renderAlerts('alerts-planned',         al.planned_not_contacted,  a => a.name, () => 'דחוף',            a => a.url);
-  renderAlerts('alerts-waiting',         al.waiting_7days,          a => a.name, a => `${a.days} ימים`,   a => a.url);
-  renderAlerts('alerts-not-interested', (al.not_interested||[]),    a => a.name, a => a.programs || '',    a => a.url, 200);
-  renderAlerts('alerts-waiting-answer', (al.waiting_answer||[]),    a => a.name, a => a.programs || a.date || '', a => a.url, 200);
-  renderAlerts('alerts-future-followup',(al.future_followup||[]),   a => a.name, a => a.programs || `בעוד ${a.days} י'`, a => a.url, 200);
+  renderAlerts('alerts-overdue',  al.overdue_followup,      a => a.name, a => `${a.days} ימים`, a => a.url);
+  renderAlerts('alerts-planned',  al.planned_not_contacted, a => a.name, () => 'דחוף',          a => a.url);
+  renderAlerts('alerts-waiting',  al.waiting_7days,         a => a.name, a => `${a.days} ימים`, a => a.url);
+  renderNotInterested(al.not_interested || []);
 
   // Managers
   const tbody = document.getElementById('mgr-tbody');
@@ -623,6 +617,26 @@ async function getInsight() {
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 init();
+
+// ── Not Interested (bottom section) ───────────────────────────────────────
+function renderNotInterested(items) {
+  const badge = document.getElementById('cnt-ni');
+  const wrap  = document.getElementById('alerts-not-interested-wrap');
+  if (!badge || !wrap) return;
+  badge.textContent = items.length + ' בתי ספר';
+  if (!items.length) { wrap.innerHTML = '<div class="alert-empty">אין בתי ספר</div>'; return; }
+  // split to 4 columns
+  const cols = [[], [], [], []];
+  items.forEach((a, i) => cols[i % 4].push(a));
+  wrap.parentElement.innerHTML = cols.map(col =>
+    `<div>${col.map(a =>
+      `<div class="alert-item" style="background:#f9f9f9;border:1px solid #e0e0e0;margin-bottom:4px"
+            onclick="window.open('${a.url}','_blank')" title="${a.name}">
+         <span class="alert-item-name">${a.name}</span>
+         <span class="alert-item-badge" style="color:#999">${a.programs||''}</span>
+       </div>`).join('')}</div>`
+  ).join('');
+}
 
 // ── By Program Followup ────────────────────────────────────────────────────
 function renderByProgram(byProg) {
