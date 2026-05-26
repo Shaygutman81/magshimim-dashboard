@@ -150,7 +150,10 @@ def parse(items):
         if   fu_status == "אישר ✓":        stats["approved"] += 1
         elif fu_status == "לא מעוניין":
             stats["not_interested"] += 1
-            alerts["not_interested"].append({"name": name, "url": url})
+            prog_text = txt(C_PROGRAMS)
+            progs = [p for p in PROG_COLS if p in prog_text]
+            alerts["not_interested"].append({"name": name, "url": url,
+                                             "programs": ", ".join(progs) if progs else ""})
         elif fu_status == "ממתין לתשובה":
             stats["waiting"] += 1
             prog_text = txt(C_PROGRAMS)

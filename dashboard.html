@@ -108,7 +108,7 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
 .alert-item-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
 .alert-item-badge{font-size:.7rem;opacity:.7;white-space:nowrap;flex-shrink:0;margin-right:4px}
 .alert-empty{color:#bbb;font-size:.8rem;text-align:center;padding:16px 0}
-#alerts-waiting-answer,#alerts-future-followup,#alerts-not-interested{max-height:320px;overflow-y:auto}
+.alert-col.scrollable{max-height:360px;overflow-y:auto}
 
 /* ── MANAGERS TABLE ── */
 .mgr-table{width:100%;border-collapse:collapse}
@@ -287,15 +287,15 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
         <div class="alert-col-title">🟡 ממתינים 7+ ימים <span id="cnt-w7"></span></div>
         <div id="alerts-waiting"></div>
       </div>
-      <div class="alert-col gray">
+      <div class="alert-col gray scrollable">
         <div class="alert-col-title">⚫ לא מעוניינים <span id="cnt-ni"></span></div>
         <div id="alerts-not-interested"></div>
       </div>
-      <div class="alert-col orange">
+      <div class="alert-col orange scrollable">
         <div class="alert-col-title">⏳ ממתינים לתשובה <span id="cnt-wa"></span></div>
         <div id="alerts-waiting-answer"></div>
       </div>
-      <div class="alert-col yellow">
+      <div class="alert-col yellow scrollable">
         <div class="alert-col-title">📅 מעקב עתידי <span id="cnt-ff"></span></div>
         <div id="alerts-future-followup"></div>
       </div>
@@ -449,7 +449,7 @@ function render(d) {
   renderAlerts('alerts-overdue',         al.overdue_followup,       a => a.name, a => `${a.days} ימים`,   a => a.url);
   renderAlerts('alerts-planned',         al.planned_not_contacted,  a => a.name, () => 'דחוף',            a => a.url);
   renderAlerts('alerts-waiting',         al.waiting_7days,          a => a.name, a => `${a.days} ימים`,   a => a.url);
-  renderAlerts('alerts-not-interested', (al.not_interested||[]),    a => a.name, () => '',                 a => a.url, 200);
+  renderAlerts('alerts-not-interested', (al.not_interested||[]),    a => a.name, a => a.programs || '',    a => a.url, 200);
   renderAlerts('alerts-waiting-answer', (al.waiting_answer||[]),    a => a.name, a => a.programs || a.date || '', a => a.url, 200);
   renderAlerts('alerts-future-followup',(al.future_followup||[]),   a => a.name, a => a.programs || `בעוד ${a.days} י'`, a => a.url, 200);
 
