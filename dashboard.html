@@ -108,7 +108,6 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
 .alert-item-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
 .alert-item-badge{font-size:.7rem;opacity:.7;white-space:nowrap;flex-shrink:0;margin-right:4px}
 .alert-empty{color:#bbb;font-size:.8rem;text-align:center;padding:16px 0}
-.alert-col.scrollable{max-height:360px;overflow-y:auto}
 
 /* ── MANAGERS TABLE ── */
 .mgr-table{width:100%;border-collapse:collapse}
@@ -303,15 +302,15 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
         <div class="alert-col-title">🟡 ממתינים 7+ ימים <span id="cnt-w7"></span></div>
         <div id="alerts-waiting"></div>
       </div>
-      <div class="alert-col gray scrollable">
+      <div class="alert-col gray">
         <div class="alert-col-title">⚫ לא מעוניינים <span id="cnt-ni"></span></div>
         <div id="alerts-not-interested"></div>
       </div>
-      <div class="alert-col orange scrollable">
+      <div class="alert-col orange">
         <div class="alert-col-title">⏳ ממתינים לתשובה <span id="cnt-wa"></span></div>
         <div id="alerts-waiting-answer"></div>
       </div>
-      <div class="alert-col yellow scrollable">
+      <div class="alert-col yellow">
         <div class="alert-col-title">📅 מעקב עתידי <span id="cnt-ff"></span></div>
         <div id="alerts-future-followup"></div>
       </div>
@@ -510,12 +509,17 @@ function render(d) {
 function renderAlerts(elId, items, nameFn, badgeFn, urlFn, limit=10) {
   const el = document.getElementById(elId);
   if (!items.length) { el.innerHTML = '<div class="alert-empty">אין התראות 🎉</div>'; return; }
-  el.innerHTML = items.slice(0,limit).map(a =>
+  const rows = items.slice(0,limit).map(a =>
     `<div class="alert-item" onclick="window.open('${urlFn(a)}','_blank')" title="${nameFn(a)}">
        <span class="alert-item-name">${nameFn(a)}</span>
        <span class="alert-item-badge">${badgeFn(a)}</span>
      </div>`
   ).join('');
+  if (limit > 10) {
+    el.innerHTML = `<div style="max-height:300px;overflow-y:auto;padding-left:2px">${rows}</div>`;
+  } else {
+    el.innerHTML = rows;
+  }
 }
 
 function renderProgChart(programs) {
