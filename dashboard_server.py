@@ -37,25 +37,39 @@ C_FU_DATE    = "date_mm3ekdyg"     # תאריך מעקב
 C_CALL_DATE  = "date_mm2hs0wy"     # תאריך שיחה
 C_PROGRAMS   = "dropdown_mm2k4at5" # תכניות מוצעות
 C_ST_HTB     = "color_mm2jenj1"    # סטטוס מדמ"ח חט"ב
-C_ST_TIK     = "color_mm2jq07z"    # סטטוס מדמ"ח תיכון
+C_ST_CS      = "color_mm2jq07z"    # סטטוס מדעי המחשב
 C_ST_KADM    = "color_mm2jv4g"     # סטטוס קדם מגשימים
 C_ST_MMR     = "color_mm2jraw6"    # סטטוס קדם ממריאות
 C_ST_HIND    = "color_mm2j9dd"     # סטטוס הנדסת תוכנה
 C_CONTACT    = "board_relation_mm2tfr1e"  # שם איש קשר
 C_ROLE       = "lookup_mm2tr48t"          # תפקיד (mirror)
 C_PHONE      = "lookup_mm2tp1wh"          # טלפון (mirror)
+C_PROG_NOTES = "text_mm33nm6c"            # מילוי לאחר שיח מנהל תכנית
+C_EXPOSURE   = "date_mm33ezhk"            # תאריך חשיפה בבית הספר
+C_CALL_NOTES = "long_text_mm2hd4ws"       # הערות מהשיחה
+C_CLS_HTB    = "numeric_mm3rr0g9"         # כיתות מדמ"ח חט"ב
+C_CLS_KADM   = "numeric_mm3rd56z"         # כיתות קדם מגשימים
+C_CLS_MMR    = "numeric_mm3r5za5"         # כיתות קדם ממריאות
+C_CLS_CS     = "numeric_mm3s4pcr"         # כיתות מגמת מדעי המחשב
 
 ALL_COLS = [C_MANAGER, C_CALL1, C_CALLDONE, C_FOLLOWUP, C_PLANNED,
             C_FU_DATE, C_CALL_DATE, C_PROGRAMS,
-            C_ST_HTB, C_ST_TIK, C_ST_KADM, C_ST_MMR, C_ST_HIND,
-            C_CONTACT, C_ROLE, C_PHONE]
+            C_ST_HTB, C_ST_CS, C_ST_KADM, C_ST_MMR, C_ST_HIND,
+            C_CONTACT, C_ROLE, C_PHONE, C_PROG_NOTES, C_EXPOSURE, C_CALL_NOTES,
+            C_CLS_HTB, C_CLS_KADM, C_CLS_MMR, C_CLS_CS]
 
 PROG_COLS = {
-    'מדמ"ח חט"ב':    C_ST_HTB,
-    'מדמ"ח תיכון':   C_ST_TIK,
-    'קדם מגשימים':   C_ST_KADM,
-    'קדם ממריאות':   C_ST_MMR,
-    'הנדסת תוכנה':   C_ST_HIND,
+    'קדם מגשימים':        C_ST_KADM,
+    'קדם ממריאות':        C_ST_MMR,
+    'מגמת מדעי המחשב':   C_ST_CS,   # עמודת סטטוס נפרדת
+    'מדמ"ח חט"ב':         C_ST_HTB,
+}
+
+PROG_CLASS_COLS = {
+    'קדם מגשימים':       C_CLS_KADM,
+    'קדם ממריאות':       C_CLS_MMR,
+    'מדמ"ח חט"ב':        C_CLS_HTB,
+    'מגמת מדעי המחשב':   C_CLS_CS,
 }
 
 # ── Monday fetch ─────────────────────────────────────────────────────────────
@@ -106,11 +120,13 @@ def parse(items):
 
     alerts = dict(overdue_followup=[], planned_not_contacted=[], waiting_7days=[], not_interested=[],
                   waiting_answer=[], future_followup=[])
+    top_notes = []   # הערות מהשיחה לתובנות AI
     managers = {}
     PROG_STATUSES = ["בוצעה שיחה", "תואמה פגישה", "התקיימה פגישה", "בית ספר מעוניין", "פעיל"]
-    programs = {n: dict(proposed=0, interested=0, approved=0, waiting=0,
+    programs = {n: dict(proposed=0, interested=0, approved=0, waiting=0, classes=0,
                         statuses={s: 0 for s in PROG_STATUSES}) for n in PROG_COLS}
     by_program = {n: {"waiting": [], "future_followup": []} for n in PROG_COLS}
+    by_program["אחר"] = {"waiting": [], "future_followup": []}  # בתי ספר ללא תכנית מוגדרת
 
     for item in items:
         cvs = {cv["id"]: cv for cv in item.get("column_values", [])}
@@ -122,12 +138,17 @@ def parse(items):
         name = item["name"]
         url  = f"{BOARD_URL}/pulses/{iid}"
 
-        call1     = txt(C_CALL1)
-        calldone  = txt(C_CALLDONE)
-        fu_status = txt(C_FOLLOWUP)
-        planned   = "true" in val(C_PLANNED).lower()
-        fu_date   = txt(C_FU_DATE)
-        call_date = txt(C_CALL_DATE)
+        call1      = txt(C_CALL1)
+        calldone   = txt(C_CALLDONE)
+        fu_status  = txt(C_FOLLOWUP)
+        planned    = "true" in val(C_PLANNED).lower()
+        fu_date    = txt(C_FU_DATE)
+        call_date  = txt(C_CALL_DATE)
+        prog_notes = txt(C_PROG_NOTES)
+        exposure   = txt(C_EXPOSURE)
+        call_notes = txt(C_CALL_NOTES)
+        if call_notes and len(top_notes) < 3:
+            top_notes.append({"school": name, "note": call_notes[:200]})
         manager   = txt(C_MANAGER).strip() or "לא משוייך"
 
         # ── counts ──
@@ -214,25 +235,46 @@ def parse(items):
                     programs[prog_name]["interested"] += 1
                 if "אישר" in st:
                     programs[prog_name]["approved"] += 1
-                if fu_status == "ממתין לתשובה":
+                if "ממתינ" in st:
                     programs[prog_name]["waiting"] += 1
 
-        # ── by_program (waiting + future followup) ──
-        for pname in school_progs:
-            if fu_status == "ממתין לתשובה":
-                by_program[pname]["waiting"].append(
-                    {"name": name, "url": url, "fu_date": fu_date or ""})
-            if fu_date and fu_status not in ("אישר ✓", "לא מעוניין", ""):
+        # ── ספירת כיתות לכל תכנית ──
+        for prog_name, cls_col in PROG_CLASS_COLS.items():
+            cls_val = txt(cls_col)
+            if cls_val:
                 try:
-                    fd = date.fromisoformat(fu_date)
-                    if fd >= today:
+                    programs[prog_name]["classes"] += int(float(cls_val))
+                except: pass
+
+        # ── by_program (waiting) ──
+        added_to_any = False
+        for prog_name, col_id in PROG_COLS.items():
+            prog_st = txt(col_id)
+            if "ממתינ" in prog_st:
+                cls_col = PROG_CLASS_COLS.get(prog_name)
+                cls_count = 0
+                if cls_col:
+                    try: cls_count = int(float(txt(cls_col) or 0))
+                    except: pass
+                entry = {"name": name, "url": url, "fu_date": fu_date or "", "classes": cls_count}
+                by_program[prog_name]["waiting"].append(entry)
+                added_to_any = True
+
+        # בית ספר עם "ממתין לתשובה" גלובלי שלא שויך לאף תכנית → "אחר"
+        if not added_to_any and fu_status == "ממתין לתשובה":
+            by_program["אחר"]["waiting"].append(
+                {"name": name, "url": url, "fu_date": fu_date or "", "classes": 0})
+
+        # ── future followup ──
+        if fu_date and fu_status not in ("אישר ✓", "לא מעוניין", ""):
+            try:
+                fd = date.fromisoformat(fu_date)
+                if fd >= today:
+                    fp_progs = school_progs if school_progs else ["אחר"]
+                    for pname in fp_progs:
                         by_program[pname]["future_followup"].append(
                             {"name": name, "url": url, "date": fu_date, "days": (fd - today).days})
-                except: pass
-                for ps in PROG_STATUSES:
-                    if ps in st:
-                        programs[prog_name]["statuses"][ps] += 1
-                        break
+            except: pass
 
     # ── sort alerts ──
     for k in ("overdue_followup", "waiting_7days"):
@@ -279,7 +321,7 @@ def parse(items):
 
     return dict(stats=stats, funnel=funnel, alerts=alerts,
                 managers=mgr_list, programs=prog_list,
-                by_program=by_prog_list,
+                by_program=by_prog_list, top_notes=top_notes,
                 last_updated=datetime.now().strftime("%d/%m/%Y %H:%M"))
 
 def pct(a, b): return round(a / b * 100) if b else 0
@@ -307,16 +349,22 @@ def api_insight():
     if not ant_key:
         return jsonify({"error": "ANTHROPIC_API_KEY לא סופק"}), 400
 
-    d       = req.get("data", {})
-    stats   = d.get("stats", {})
-    managers= d.get("managers", [])
-    programs= d.get("programs", [])
-    alerts  = d.get("alerts", {})
+    d        = req.get("data", {})
+    stats    = d.get("stats", {})
+    managers = d.get("managers", [])
+    programs = d.get("programs", [])
+    alerts   = d.get("alerts", {})
+    notes    = d.get("top_notes", [])
 
     top  = managers[0]["name"] if managers else "?"
     t, c, i, a = stats.get("total",0), stats.get("contacted",0), stats.get("interested",0), stats.get("approved",0)
     od   = len(alerts.get("overdue_followup", []))
     pnc  = stats.get("planned_not_contacted", 0)
+
+    notes_text = ""
+    if notes:
+        notes_lines = "\n".join(f'  • {n["school"]}: {n["note"]}' for n in notes[:3])
+        notes_text = f"\n\nהערות שיח מהשטח (3 הראשונות):\n{notes_lines}"
 
     prompt = f"""אתה מנתח מכירות בכיר של עמותת מגשימים.
 נתוני הפייפליין הנוכחי:
@@ -326,19 +374,16 @@ def api_insight():
 • בתכנון כיתות שטרם פנינו: {pnc} ← דחוף
 • פולו-אפ שעבר תאריך: {od}
 • מנהל מוביל: {top}
-תכניות: {', '.join(f"{p['name']} ({p['proposed']} הוצע, {p['interested']} מעוניין)" for p in programs)}
+תכניות: {', '.join(f"{p['name']} ({p['proposed']} הוצע, {p['interested']} מעוניין)" for p in programs)}{notes_text}
 
-כתוב סיכום ניהולי קצר (4 משפטים) בעברית:
-1. מצב הפייפליין
-2. הצלחה בולטת
-3. מה בוער עכשיו
-4. המלצה לשבוע הקרוב
-סגנון: ישיר, עסקי."""
+כתוב בדיוק 3 תובנות ניהוליות קצרות בעברית, ממוספרות 1–3.
+כל תובנה: משפט אחד, ישיר ועסקי.
+התייחס לנתונים ולהערות מהשטח אם יש."""
 
     try:
         client = anthropic.Anthropic(api_key=ant_key)
         msg = client.messages.create(
-            model="claude-sonnet-4-6", max_tokens=350,
+            model="claude-sonnet-4-5", max_tokens=350,
             messages=[{"role": "user", "content": prompt}])
         return jsonify({"insight": msg.content[0].text})
     except Exception as e:

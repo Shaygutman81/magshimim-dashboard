@@ -125,7 +125,7 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
 #prog-chart-wrap{padding:16px 20px;height:220px}
 
 /* ── PROGRAM DETAIL CARDS ── */
-.prog-detail-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;padding:16px 20px}
+.prog-detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:16px 20px}
 .prog-card{background:#f8faff;border-radius:10px;padding:14px;border:1px solid #e8eef8}
 .prog-card-name{font-size:.82rem;font-weight:800;color:var(--navy);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .prog-total{font-size:1.8rem;font-weight:900;color:var(--navy);line-height:1}
@@ -292,27 +292,6 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
     <div class="by-prog-grid" id="by-prog-grid"></div>
   </div>
 
-  <!-- ALERTS (full width) -->
-  <div class="card full-width" style="margin-bottom:24px">
-    <div class="card-header">
-      <span class="card-title">🚨 מה בוער עכשיו</span>
-      <span class="card-badge" id="alerts-total">טוען...</span>
-    </div>
-    <div class="alerts-grid">
-      <div class="alert-col red">
-        <div class="alert-col-title">🔴 פולו-אפ באיחור <span id="cnt-od"></span></div>
-        <div id="alerts-overdue"></div>
-      </div>
-      <div class="alert-col orange">
-        <div class="alert-col-title">🟠 בתכנון – טרם פנינו <span id="cnt-pnc"></span></div>
-        <div id="alerts-planned"></div>
-      </div>
-      <div class="alert-col yellow">
-        <div class="alert-col-title">🟡 ממתינים 7+ ימים <span id="cnt-w7"></span></div>
-        <div id="alerts-waiting"></div>
-      </div>
-    </div>
-  </div>
 
   <!-- ROW 2: MANAGERS + AI -->
   <div class="main-grid">
@@ -461,14 +440,6 @@ function render(d) {
 
   // Alerts
   const al = d.alerts;
-  const totalAlerts = al.overdue_followup.length + al.planned_not_contacted.length + al.waiting_7days.length;
-  document.getElementById('alerts-total').textContent = totalAlerts + ' התראות';
-  document.getElementById('cnt-od').textContent  = '(' + al.overdue_followup.length + ')';
-  document.getElementById('cnt-pnc').textContent = '(' + al.planned_not_contacted.length + ')';
-  document.getElementById('cnt-w7').textContent  = '(' + al.waiting_7days.length + ')';
-  renderAlerts('alerts-overdue',  al.overdue_followup,      a => a.name, a => `${a.days} ימים`, a => a.url);
-  renderAlerts('alerts-planned',  al.planned_not_contacted, a => a.name, () => 'דחוף',          a => a.url);
-  renderAlerts('alerts-waiting',  al.waiting_7days,         a => a.name, a => `${a.days} ימים`, a => a.url);
   renderNotInterested(al.not_interested || []);
 
   // Managers
@@ -550,6 +521,8 @@ const PROG_STATUS_META = [
   { key: "פעיל",             color: "#00c875", label: "פעיל"            },
 ];
 
+const PROG_HAS_CLASSES = ['קדם מגשימים', 'קדם ממריאות', 'מדמ"ח חט"ב', 'מגמת מדעי המחשב'];
+
 function renderProgDetail(programs) {
   const grid = document.getElementById('prog-detail-grid');
   grid.innerHTML = '';
@@ -570,10 +543,12 @@ function renderProgDetail(programs) {
         <div class="prog-card-name" title="${p.name}">${p.name}</div>
         <div class="prog-total">${p.proposed}</div>
         <div class="prog-total-label">בתי ספר הוצעה התכנית</div>
-        ${p.waiting ? `<div style="display:inline-flex;align-items:center;gap:5px;background:#fff8ee;border:1px solid #ffe0a0;border-radius:6px;padding:3px 8px;margin-bottom:8px;font-size:.75rem;font-weight:700;color:#b07000">⏳ ${p.waiting} ממתינים לתשובה</div>` : ''}
-        <div class="prog-status-list">
-          ${rows || '<span style="color:#ccc;font-size:.75rem">אין נתונים</span>'}
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
+          ${p.interested ? `<div style="display:inline-flex;align-items:center;gap:4px;background:#f3eeff;border:1px solid #c9a8f0;border-radius:6px;padding:3px 8px;font-size:.75rem;font-weight:700;color:#6b21c8">⭐ ${p.interested} בית ספר מעוניין</div>` : ''}
+          ${p.waiting ? `<div style="display:inline-flex;align-items:center;gap:4px;background:#fff8ee;border:1px solid #ffe0a0;border-radius:6px;padding:3px 8px;font-size:.75rem;font-weight:700;color:#b07000">⏳ ${p.waiting} ממתינים לתשובה</div>` : ''}
+          ${PROG_HAS_CLASSES.includes(p.name) ? `<div style="display:inline-flex;align-items:center;gap:4px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;padding:3px 8px;font-size:.75rem;font-weight:700;color:#2e7d32">🏫 ${p.classes || 0} כיתות</div>` : ''}
         </div>
+        ${rows ? `<div class="prog-status-list">${rows}</div>` : ''}
         <div class="prog-conv-bar">
           <div class="prog-conv-fill" style="width:${convPct}%"></div>
         </div>
@@ -649,11 +624,20 @@ function renderByProgram(byProg) {
   const totalWaiting = byProg.reduce((s, p) => s + p.waiting.length, 0);
   badge.textContent = `${totalWaiting} ממתינים`;
   grid.innerHTML = byProg.map(p => {
-    const waitRows = p.waiting.map(s =>
-      `<div class="by-prog-row" onclick="window.open('${s.url}','_blank')">
-        <span class="by-prog-school">${s.name}</span>
-        <span class="by-prog-date">${s.fu_date ? '📅 ' + s.fu_date : ''}</span>
-      </div>`).join('');
+    const isTik = p.name === 'מדמ"ח תיכון';
+    const waitRows = p.waiting.map(s => {
+      const tikExtra = isTik ? `
+        ${s.prog_notes ? `<div style="font-size:.68rem;color:#6b21c8;margin-top:2px;padding:2px 6px;background:#f3eeff;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%" title="${s.prog_notes}">📋 ${s.prog_notes}</div>` : ''}
+        ${s.exposure ? `<div style="font-size:.68rem;color:#0369a1;margin-top:2px">📆 חשיפה: ${s.exposure}</div>` : ''}
+      ` : '';
+      return `<div class="by-prog-row" onclick="window.open('${s.url}','_blank')" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <div style="display:flex;justify-content:space-between;width:100%">
+          <span class="by-prog-school">${s.name}</span>
+          <span class="by-prog-date">${s.fu_date ? '📅 ' + s.fu_date : ''}</span>
+        </div>
+        ${tikExtra}
+      </div>`;
+    }).join('');
     return `<div class="by-prog-card">
       <div class="by-prog-name">${p.name} <span style="font-weight:400;color:#888;font-size:.75rem">(${p.waiting.length})</span></div>
       ${waitRows || '<div style="color:#bbb;font-size:.75rem;text-align:center;padding:8px">אין ממתינים</div>'}
