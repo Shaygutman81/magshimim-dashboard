@@ -50,7 +50,7 @@ C_CALL_NOTES = "long_text_mm2hd4ws"       # הערות מהשיחה
 C_CLS_HTB    = "numeric_mm3rr0g9"         # כיתות מדמ"ח חט"ב
 C_CLS_KADM   = "numeric_mm3rd56z"         # כיתות קדם מגשימים
 C_CLS_MMR    = "numeric_mm3r5za5"         # כיתות קדם ממריאות
-C_CLS_CS     = "numeric_mm3s4pcr"         # כיתות מגמת מדעי המחשב
+C_CLS_CS     = "numeric_mm3syahg"         # כיתות מגמת מדעי המחשב (עמודה שנוספה ידנית)
 
 ALL_COLS = [C_MANAGER, C_CALL1, C_CALLDONE, C_FOLLOWUP, C_PLANNED,
             C_FU_DATE, C_CALL_DATE, C_PROGRAMS,
@@ -240,11 +240,15 @@ def parse(items):
 
         # ── ספירת כיתות לכל תכנית ──
         for prog_name, cls_col in PROG_CLASS_COLS.items():
-            cls_val = txt(cls_col)
-            if cls_val:
-                try:
-                    programs[prog_name]["classes"] += int(float(cls_val))
-                except: pass
+            cv_obj = cvs.get(cls_col)
+            if cv_obj:
+                raw = cv_obj.get("text") or cv_obj.get("value") or ""
+                if raw:
+                    try:
+                        # value field מגיע כ-"\"3\"" — מנקה גרשיים
+                        clean = str(raw).strip().strip('"')
+                        programs[prog_name]["classes"] += int(float(clean))
+                    except: pass
 
         # ── by_program (waiting) ──
         added_to_any = False
