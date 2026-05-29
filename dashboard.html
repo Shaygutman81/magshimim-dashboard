@@ -157,6 +157,22 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
 @media(max-width:1100px){.by-prog-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.by-prog-grid{grid-template-columns:1fr}}
 
+/* ── SALES PANEL ── */
+.sales-prog-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+@media(max-width:1100px){.sales-prog-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.sales-prog-grid{grid-template-columns:1fr}}
+.sales-prog-card{background:linear-gradient(135deg,#f8faff 0%,#eef3ff 100%);border:1px solid #d4e0f7;border-radius:14px;padding:18px;text-align:center;position:relative;overflow:hidden}
+.sales-prog-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--sp-color,#1B75BC);border-radius:14px 14px 0 0}
+.sales-prog-card-name{font-size:.8rem;font-weight:800;color:#555;margin-bottom:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sales-prog-approved{font-size:2.2rem;font-weight:900;color:var(--sp-color,#1B75BC);line-height:1;margin-bottom:2px}
+.sales-prog-label{font-size:.72rem;color:#888;margin-bottom:12px}
+.sales-prog-classes{display:inline-flex;align-items:center;gap:5px;background:#e8f5e9;border:1.5px solid #a5d6a7;border-radius:8px;padding:5px 12px;font-size:.82rem;font-weight:800;color:#2e7d32}
+.sales-prog-classes-empty{display:inline-flex;align-items:center;gap:5px;background:#f5f5f5;border:1.5px dashed #ccc;border-radius:8px;padding:5px 12px;font-size:.82rem;font-weight:600;color:#aaa}
+.sales-totals{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;padding:16px 0 4px;border-top:2px dashed #e0e8f5}
+.sales-total-chip{background:#fff;border:2px solid #d4e0f7;border-radius:12px;padding:12px 24px;text-align:center;min-width:130px}
+.sales-total-chip .val{font-size:2rem;font-weight:900;color:var(--navy)}
+.sales-total-chip .lbl{font-size:.75rem;color:#888;margin-top:2px}
+
 /* ── AI INSIGHT ── */
 .ai-section{padding:20px}
 .ai-controls{display:flex;gap:12px;align-items:center;margin-bottom:16px}
@@ -250,28 +266,14 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
     </div>
   </div>
 
-  <!-- ROW 1: FUNNEL + ALERTS -->
-  <div class="main-grid" style="margin-bottom:24px">
-
-    <!-- FUNNEL -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">🔻 פאנל מכירה</span>
-        <span class="card-badge">% המרה מהשלב הקודם</span>
-      </div>
-      <div class="funnel" id="funnel-container"></div>
+  <!-- ROW 1: PROGRAMS CHART (full width now) -->
+  <div class="card full-width" style="margin-bottom:24px">
+    <div class="card-header">
+      <span class="card-title">📊 פירוט לפי תכנית</span>
     </div>
-
-    <!-- PROGRAMS -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">📊 פירוט לפי תכנית</span>
-      </div>
-      <div id="prog-chart-wrap">
-        <canvas id="prog-chart"></canvas>
-      </div>
+    <div id="prog-chart-wrap">
+      <canvas id="prog-chart"></canvas>
     </div>
-
   </div>
 
   <!-- PROGRAMS DETAIL (full width) -->
@@ -338,6 +340,24 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
     <div class="alerts-grid" style="grid-template-columns:repeat(4,1fr)">
       <div id="alerts-not-interested-wrap"></div>
     </div>
+  </div>
+
+  <!-- FUNNEL — סוף דשבורד -->
+  <div class="card full-width" style="margin-top:24px">
+    <div class="card-header">
+      <span class="card-title">🔻 פאנל מכירה</span>
+      <span class="card-badge">% המרה מהשלב הקודם</span>
+    </div>
+    <div class="funnel" id="funnel-container"></div>
+  </div>
+
+  <!-- פאנל מכירה סיכום -->
+  <div class="card full-width" style="margin-top:24px" id="sales-panel">
+    <div class="card-header">
+      <span class="card-title">🏆 פאנל מכירה — סיכום תוצאות</span>
+      <span class="card-badge" id="sales-total-badge">טוען...</span>
+    </div>
+    <div id="sales-panel-body" style="padding:20px"></div>
   </div>
 
 </main>
@@ -469,6 +489,9 @@ function render(d) {
 
   // By-program followup
   renderByProgram(d.by_program || []);
+
+  // Sales panel
+  renderSalesPanel(d.programs, d.stats);
 }
 
 function renderAlerts(elId, items, nameFn, badgeFn, urlFn, limit=10) {
@@ -643,6 +666,71 @@ function renderByProgram(byProg) {
       ${waitRows || '<div style="color:#bbb;font-size:.75rem;text-align:center;padding:8px">אין ממתינים</div>'}
     </div>`;
   }).join('');
+}
+
+// ── Sales Panel ─────────────────────────────────────────────────────────────
+const PROG_COLORS = {
+  'קדם מגשימים':      '#9d50dd',
+  'קדם ממריאות':      '#1B75BC',
+  'מגמת מדעי המחשב': '#00c875',
+  'מדמ"ח חט"ב':       '#fdab3d',
+};
+
+function renderSalesPanel(programs, stats) {
+  const body  = document.getElementById('sales-panel-body');
+  const badge = document.getElementById('sales-total-badge');
+  if (!programs || !programs.length) { body.innerHTML = ''; return; }
+
+  let totalApproved = 0, totalClasses = 0, totalInterested = 0;
+
+  const cards = programs.map(p => {
+    const color = PROG_COLORS[p.name] || '#888';
+    totalApproved   += p.approved   || 0;
+    totalClasses    += p.classes    || 0;
+    totalInterested += p.interested || 0;
+
+    const classesHTML = PROG_HAS_CLASSES.includes(p.name)
+      ? (p.classes
+          ? `<div class="sales-prog-classes">🏫 ${p.classes} כיתות</div>`
+          : `<div class="sales-prog-classes-empty">🏫 0 כיתות</div>`)
+      : '';
+
+    return `<div class="sales-prog-card" style="--sp-color:${color}">
+      <div class="sales-prog-card-name" title="${p.name}">${p.name}</div>
+      <div class="sales-prog-approved">${p.approved || 0}</div>
+      <div class="sales-prog-label">בתי ספר אישרו</div>
+      ${classesHTML}
+    </div>`;
+  }).join('');
+
+  const convPct = stats.contacted ? Math.round(totalApproved / stats.contacted * 100) : 0;
+
+  body.innerHTML = `
+    <div class="sales-prog-grid">${cards}</div>
+    <div class="sales-totals">
+      <div class="sales-total-chip">
+        <div class="val">${stats.total || 0}</div>
+        <div class="lbl">סה"כ בתי ספר</div>
+      </div>
+      <div class="sales-total-chip">
+        <div class="val">${stats.contacted || 0}</div>
+        <div class="lbl">פנינו</div>
+      </div>
+      <div class="sales-total-chip">
+        <div class="val">${totalInterested}</div>
+        <div class="lbl">מעוניינים</div>
+      </div>
+      <div class="sales-total-chip" style="border-color:#a5d6a7">
+        <div class="val" style="color:#2e7d32">${totalApproved}</div>
+        <div class="lbl">אישרו</div>
+      </div>
+      <div class="sales-total-chip" style="border-color:#a5d6a7">
+        <div class="val" style="color:#2e7d32">🏫 ${totalClasses}</div>
+        <div class="lbl">סה"כ כיתות</div>
+      </div>
+    </div>`;
+
+  badge.textContent = `${totalApproved} אישרו · ${totalClasses} כיתות`;
 }
 
 // ── Sync to cooperation board ───────────────────────────────────────────────
