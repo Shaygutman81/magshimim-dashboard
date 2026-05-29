@@ -266,16 +266,6 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
     </div>
   </div>
 
-  <!-- ROW 1: PROGRAMS CHART (full width now) -->
-  <div class="card full-width" style="margin-bottom:24px">
-    <div class="card-header">
-      <span class="card-title">📊 פירוט לפי תכנית</span>
-    </div>
-    <div id="prog-chart-wrap">
-      <canvas id="prog-chart"></canvas>
-    </div>
-  </div>
-
   <!-- PROGRAMS DETAIL (full width) -->
   <div class="card full-width" style="margin-bottom:24px">
     <div class="card-header">
@@ -480,9 +470,6 @@ function render(d) {
       </td>
     </tr>`;
   });
-
-  // Programs chart
-  renderProgChart(d.programs);
 
   // Programs detail cards
   renderProgDetail(d.programs);
@@ -697,8 +684,6 @@ function renderSalesPanel(programs, stats) {
 
     return `<div class="sales-prog-card" style="--sp-color:${color}">
       <div class="sales-prog-card-name" title="${p.name}">${p.name}</div>
-      <div class="sales-prog-approved">${p.approved || 0}</div>
-      <div class="sales-prog-label">בתי ספר אישרו</div>
       ${classesHTML}
     </div>`;
   }).join('');
@@ -721,16 +706,12 @@ function renderSalesPanel(programs, stats) {
         <div class="lbl">מעוניינים</div>
       </div>
       <div class="sales-total-chip" style="border-color:#a5d6a7">
-        <div class="val" style="color:#2e7d32">${totalApproved}</div>
-        <div class="lbl">אישרו</div>
-      </div>
-      <div class="sales-total-chip" style="border-color:#a5d6a7">
         <div class="val" style="color:#2e7d32">🏫 ${totalClasses}</div>
         <div class="lbl">סה"כ כיתות</div>
       </div>
     </div>`;
 
-  badge.textContent = `${totalApproved} אישרו · ${totalClasses} כיתות`;
+  badge.textContent = `${totalClasses} כיתות`;
 }
 
 // ── Sync to cooperation board ───────────────────────────────────────────────
