@@ -429,11 +429,9 @@ function render(d) {
 
   // Funnel
   const fc = document.getElementById('funnel-container');
-  fc.innerHTML = '';
-  d.funnel.forEach((f, i) => {
-    const maxW = 100, minW = 20;
-    const barW = Math.max(minW, f.pct_abs);
-    fc.innerHTML += `
+  fc.innerHTML = d.funnel.map((f, i) => {
+    const barW = Math.max(20, f.pct_abs);
+    return `
       <div class="funnel-row">
         <div class="funnel-stage">${f.stage}</div>
         <div class="funnel-bar-wrap">
@@ -446,7 +444,7 @@ function render(d) {
         </div>
       </div>
       ${i < d.funnel.length-1 ? '<div class="funnel-arrow">▼</div>' : ''}`;
-  });
+  }).join('');
 
   // Alerts
   const al = d.alerts;
@@ -454,10 +452,9 @@ function render(d) {
 
   // Managers
   const tbody = document.getElementById('mgr-tbody');
-  tbody.innerHTML = '';
-  d.managers.forEach((m, i) => {
+  tbody.innerHTML = d.managers.map((m, i) => {
     const rankClass = i === 0 ? 'mgr-rank gold' : 'mgr-rank';
-    tbody.innerHTML += `<tr>
+    return `<tr>
       <td><span class="${rankClass}">${i+1}</span></td>
       <td class="mgr-name">${m.name}</td>
       <td>${m.total}</td>
@@ -469,7 +466,7 @@ function render(d) {
         <strong>${m.score}</strong>
       </td>
     </tr>`;
-  });
+  }).join('');
 
   // Programs detail cards
   renderProgDetail(d.programs);
@@ -613,7 +610,8 @@ function renderNotInterested(items) {
   // split to 4 columns
   const cols = [[], [], [], []];
   items.forEach((a, i) => cols[i % 4].push(a));
-  wrap.parentElement.innerHTML = cols.map(col =>
+  wrap.style.display = 'contents';
+  wrap.innerHTML = cols.map(col =>
     `<div>${col.map(a =>
       `<div class="alert-item" style="background:#f9f9f9;border:1px solid #e0e0e0;margin-bottom:4px"
             onclick="window.open('${a.url}','_blank')" title="${a.name}">
