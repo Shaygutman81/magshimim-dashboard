@@ -308,17 +308,20 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
       </div>
     </div>
 
-    <!-- AI INSIGHT -->
+    <!-- INSIGHTS -->
     <div class="card">
       <div class="card-header">
-        <span class="card-title">🤖 תובנת AI שבועית</span>
+        <span class="card-title">💡 תובנות</span>
       </div>
-      <div class="ai-section">
-        <div class="ai-controls">
-          <button id="ai-btn" onclick="getInsight()">🤖 סכם את הפייפליין</button>
-          <input class="ai-key-input" id="ai-key-display" type="password" placeholder="Anthropic API Key (אם לא הוזן בהתחלה)">
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px" id="insights-list">
+        <div style="color:#bbb;font-size:.85rem">טוען...</div>
+      </div>
+      <div style="padding:0 20px 16px;border-top:1px solid #f0f4f8;margin-top:4px">
+        <div class="ai-controls" style="margin-bottom:8px;margin-top:12px">
+          <button id="ai-btn" onclick="getInsight()">🤖 תובנת AI</button>
+          <input class="ai-key-input" id="ai-key-display" type="password" placeholder="Anthropic API Key">
         </div>
-        <div class="ai-result" id="ai-result">לחץ על הכפתור לקבלת תובנה חכמה על מצב המכירות.</div>
+        <div class="ai-result" id="ai-result" style="display:none"></div>
       </div>
     </div>
 
@@ -483,6 +486,9 @@ function render(d) {
   // By-program followup
   renderByProgram(d.by_program || []);
 
+  // Auto insights
+  renderAutoInsights(d);
+
   // Sales panel
   renderSalesPanel(d.programs, d.stats);
 }
@@ -573,7 +579,56 @@ function renderProgDetail(programs) {
   });
 }
 
-// ── AI Insight ─────────────────────────────────────────────────────────────
+// ── Auto Insights ──────────────────────────────────────────────────────────
+function renderAutoInsights(d) {
+  const s = d.stats;
+  const el = document.getElementById('insights-list');
+  if (!el || !s) return;
+
+  const insights = [];
+  const pct = (a,b) => b ? Math.round(a/b*100) : 0;
+
+  // 1. כיסוי שטח
+  const notContacted = s.total - s.contacted;
+  if (notContacted > 0) {
+    insights.push({ icon:'📞', color:'#1B75BC',
+      text: `פנינו ל-<b>${s.contacted}</b> מתוך <b>${s.total}</b> בתי ספר (${pct(s.contacted,s.total)}%) — נותרו <b>${notContacted}</b> לפנייה ראשונה.` });
+  } else {
+    insights.push({ icon:'✅', color:'#00c875',
+      text: `פנינו לכלל <b>${s.total}</b> בתי הספר — כיסוי מלא!` });
+  }
+
+  // 2. שיעור עניין
+  const intRate = pct(s.interested, s.contacted);
+  const bestProg = d.programs && d.programs.reduce((best, p) =>
+    (p.proposed > 0 && pct(p.interested,p.proposed) > pct(best.interested,best.proposed)) ? p : best,
+    d.programs[0]);
+  const bestRate = bestProg ? pct(bestProg.interested, bestProg.proposed) : 0;
+  insights.push({ icon:'⭐', color:'#9d50dd',
+    text: `שיעור עניין: <b>${intRate}%</b> מהשיחות. התכנית המובילה: <b>${bestProg ? bestProg.name : '—'}</b> עם ${bestRate}% עניין.` });
+
+  // 3. ממתינים / דחוף
+  const waiting = (d.alerts && d.alerts.waiting_answer) ? d.alerts.waiting_answer.length : s.waiting;
+  if (s.planned_not_contacted > 0) {
+    insights.push({ icon:'⚡', color:'#e65100',
+      text: `<b>${s.planned_not_contacted}</b> בתי ספר בתכנון כיתות שטרם פנינו אליהם — <b>דחוף לחיוג!</b>` });
+  } else if (waiting > 0) {
+    insights.push({ icon:'⏳', color:'#b07000',
+      text: `<b>${waiting}</b> בתי ספר ממתינים לתשובה — מומלץ לעקוב ולעדכן.` });
+  } else {
+    insights.push({ icon:'🎯', color:'#2e7d32',
+      text: `אין בתי ספר דחופים הממתינים לטיפול — עדכון שוטף תקין.` });
+  }
+
+  el.innerHTML = insights.map(i =>
+    `<div style="display:flex;align-items:flex-start;gap:10px;background:#f8faff;border-radius:10px;padding:12px 14px;border-right:3px solid ${i.color}">
+       <span style="font-size:1.2rem;flex-shrink:0">${i.icon}</span>
+       <span style="font-size:.85rem;line-height:1.5;color:#333">${i.text}</span>
+     </div>`
+  ).join('');
+}
+
+// ── AI Insight ──────────────────────────────────────────────────────────────
 async function getInsight() {
   const btn = document.getElementById('ai-btn');
   const res = document.getElementById('ai-result');
@@ -586,6 +641,7 @@ async function getInsight() {
   if (!dashData) { res.textContent = 'טוען נתונים קודם...'; return; }
 
   btn.disabled = true;
+  res.style.display = 'block';
   res.className = 'ai-result loading';
   res.textContent = 'מנתח פייפליין... ⏳';
 
