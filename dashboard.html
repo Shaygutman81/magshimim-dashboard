@@ -223,6 +223,7 @@ main{padding:24px 32px;max-width:1400px;margin:0 auto;display:none}
     <a href="https://cyber798195.monday.com/boards/8113606849" target="_blank" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:8px 16px;border-radius:8px;font-family:'Heebo',sans-serif;font-size:.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px">🤝 בורד שיתוף פעולה</a>
     <button id="sync-btn" onclick="syncToCoopBoard()">⇄ סנכרן לשיתוף פעולה</button>
     <button id="refresh-btn" onclick="loadData()">↻ רענן</button>
+    <button id="settings-btn" onclick="openSettings()" title="הגדרות">⚙️</button>
     <button id="logout-btn" onclick="logout()">התנתק</button>
   </div>
 </header>
@@ -368,6 +369,12 @@ function init() {
     loadData();
     setInterval(loadData, REFRESH_MS);
   }
+}
+
+function openSettings() {
+  document.getElementById('input-monday').value    = mondayToken  || '';
+  document.getElementById('input-anthropic').value = anthropicKey || '';
+  document.getElementById('setup-overlay').style.display = 'flex';
 }
 
 function saveSetup() {
